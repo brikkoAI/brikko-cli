@@ -1,0 +1,89 @@
+# Brikko Studio — local orchestration: core + anonymizer + redis.
+# This file is bundled into brikko-cli and dropped into $HOME/brikko-studio
+# by `brikko init`. Do not edit by hand — re-run `brikko update` to refresh.
+#
+# Notes:
+# - `version:` key omitted on purpose — Compose v2 ignores it and warns.
+# - core depends_on anonymizer + redis being *healthy* (not just started).
+# - GHCR refs use lowercase brikkoai (org name on GitHub Container Registry).
+
+services:
+  core:
+    image: ghcr.io/brikkoai/studio-core:${BRIKKO_VERSION:-latest}
+    container_name: brikko-studio-core
+    restart: unless-stopped
+    ports:
+      - "${BRIKKO_PORT:-3737}:3737"
+    environment:
+      BRIKKO_GATEWAY: ${BRIKKO_GATEWAY:-https://api.brikko.ru}
+      BRIKKO_PORT: 3737
+      BRIKKO_USE_INMEM_KEYCHAIN: ${BRIKKO_USE_INMEM_KEYCHAIN:-0}
+      ANONYMIZER_URL: http://anonymizer:8403
+      BRIKKO_ANONYMIZER_URL: http://anonymizer:8403
+      BRIKKO_PLUGIN_DEBUG: ${BRIKKO_PLUGIN_DEBUG:-0}
+      BRIKKO_POLICY_PATH: ${BRIKKO_POLICY_PATH:-/etc/brikko/policy.yaml}
+      BRIKKO_TOOL_POLICIES_PATH: ${BRIKKO_TOOL_POLICIES_PATH:-/etc/brikko/tool-policies.yaml}
+      BRIKKO_MCP_BITRIX24_BIN: brikko-mcp-bitrix24
+      BRIKKO_MCP_1C_BIN: brikko-mcp-1c
+      REDIS_URL: redis://redis:6379/0
+      NODE_ENV: production
+    volumes:
+      - brikko-config:/etc/brikko
+    depends_on:
+      anonymizer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3737/api/auth/status').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  anonymizer:
+    image: ghcr.io/brikkoai/studio-anonymizer:${BRIKKO_VERSION:-latest}
+    container_name: brikko-studio-anonymizer
+    restart: unless-stopped
+    # CRITICAL: bind only to host loopback. NEVER expose 8403 publicly —
+    # the sidecar holds workspace AES keys + plaintext PII mappings in
+    # process memory and on disk under /data/.brikko.
+    ports:
+      - "127.0.0.1:${ANONYMIZER_PORT:-8403}:8403"
+    volumes:
+      - brikko-state:/data
+    environment:
+      BRIKKO_HOME: /data/.brikko
+      BRIKKO_KEY_FALLBACK: ${BRIKKO_KEY_FALLBACK:-0}
+      BRIKKO_KEY_PASSPHRASE: ${BRIKKO_KEY_PASSPHRASE:-}
+      BRIKKO_TOOL_POLICIES_PATH: ${BRIKKO_TOOL_POLICIES_PATH:-}
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8403/health', timeout=2)"
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: brikko-studio-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 3s
+
+volumes:
+  brikko-state:
+    name: brikko-state
+  brikko-config:
+    name: brikko-config

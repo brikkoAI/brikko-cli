@@ -1,0 +1,70 @@
+{
+  "name": "brikko-cli",
+  "version": "0.1.0",
+  "description": "Official CLI for Brikko Studio — install, run, and manage the local AI agent with reversible PII anonymization (152-FZ compliant).",
+  "keywords": [
+    "brikko",
+    "brikko-studio",
+    "llm",
+    "ai-agent",
+    "anonymization",
+    "pii",
+    "privacy",
+    "152-fz",
+    "docker",
+    "cli"
+  ],
+  "homepage": "https://brikko.ru",
+  "bugs": {
+    "url": "https://github.com/brikkoAI/brikko-cli/issues",
+    "email": "hello@brikko.ru"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/brikkoAI/brikko-cli.git"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "Brikko",
+    "email": "hello@brikko.ru",
+    "url": "https://brikko.ru"
+  },
+  "type": "module",
+  "bin": {
+    "brikko": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/copy-templates.js && node scripts/add-shebang.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "npm run build && npm test",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "execa": "^9.5.1",
+    "ora": "^8.1.1",
+    "picocolors": "^1.1.1",
+    "prompts": "^2.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.10",
+    "@types/prompts": "^2.4.9",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
