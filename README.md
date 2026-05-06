@@ -36,6 +36,17 @@ CLI диагностирует все эти зависимости через `
 
 ### 📋 Команды
 
+**API-команды (v0.2.0+):** не требуют Studio, общаются прямо с `api.brikko.ru`.
+
+| Команда | Что делает |
+|---|---|
+| `brikko chat [prompt]` | Чат с LLM через смарт-рутер. `--stream`, `--system`, `--json`, `--model auto:smart` |
+| `brikko anonymize [--text "..."]` | Маскирование PII (стдин или `--text`). По default JSON, `--pretty` для человека |
+| `brikko restore --mapping-id ID` | Восстановление PII placeholders → реальный текст |
+| `brikko safe-chat [prompt]` | **anonymize → chat → restore** одной командой. Compliance-friendly (152-ФЗ) |
+
+**Studio-команды:** для управления локальным агентом.
+
 | Команда | Что делает |
 |---|---|
 | `brikko init [--dir DIR] [--port N]` | Установка с нуля: проверки → compose.yml → pull → up → health → браузер |
@@ -52,10 +63,54 @@ CLI диагностирует все эти зависимости через `
 
 Все команды поддерживают `--help`. Глобальные флаги:
 
-- `--dir <path>` — папка установки (по умолчанию `$HOME/brikko-studio`)
+- `--dir <path>` — папка установки Studio (по умолчанию `$HOME/brikko-studio`)
 - `--json` — машинно-читаемый вывод для CI / скриптов
 - `NO_COLOR=1` — отключить ANSI-цвета (стандарт [no-color.org](https://no-color.org))
 - `BRIKKO_NO_BROWSER=1` — не открывать браузер после `brikko init`
+
+API-команды (`chat`, `anonymize`, `restore`, `safe-chat`) дополнительно используют:
+
+- `BRIKKO_API_KEY` — твой ключ `sk-brk-…` (получи на [brikko.ru/app/keys](https://brikko.ru/app/keys))
+- `--key <apiKey>` — override ключа на одну команду
+- `BRIKKO_API_BASE` — override gateway URL (`https://api.brikko.ru` по default)
+- `~/.brikko/config.json` — место, где CLI кеширует ключ после первого ввода
+
+### 🤖 Чат с LLM из терминала
+
+```bash
+# Первый запуск спросит API ключ и сохранит в ~/.brikko/config.json
+brikko chat "Объясни TLS handshake простыми словами"
+
+# Стриминг токен за токеном (как ChatGPT в браузере)
+brikko chat "Напиши rate-limiter на Go" --stream
+
+# Конкретная модель + system message
+brikko chat --system "Отвечай только на русском, в 3 предложения" \
+            --prompt "Что такое OAuth 2.1?"
+
+# Из stdin (для пайпов)
+cat README.md | brikko chat "Сделай TL;DR в 3 пунктах" --stream
+
+# JSON для скриптов
+brikko chat "..." --json | jq -r '.choices[0].message.content'
+```
+
+### 🛡 PII-маскирование (152-ФЗ)
+
+```bash
+# Маскирование
+echo "ИНН 7707083893, Иванов Иван" | brikko anonymize
+# → {"masked_text":"ИНН <INN_1>, <NAME_1>","mapping_id":"ab12...","count":2}
+
+# Восстановление по mapping_id
+echo "<NAME_1> подтвердил ИНН <INN_1>" \
+  | brikko restore --mapping-id ab12...
+# → Иванов Иван подтвердил ИНН 7707083893
+
+# Безопасный chat одной командой (anonymize → chat → restore)
+echo "Письмо клиенту Иванову с ИНН 7707083893" | brikko safe-chat
+# Модель видит "<NAME_1>" и "<INN_1>", ответ возвращается с реальными ПД.
+```
 
 ### 🔍 Что делает `brikko init`
 

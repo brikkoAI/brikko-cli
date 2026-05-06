@@ -1,12 +1,15 @@
 {
   "name": "brikko-cli",
-  "version": "0.1.0",
-  "description": "Official CLI for Brikko Studio — install, run, and manage the local AI agent with reversible PII anonymization (152-FZ compliant).",
+  "version": "0.2.0",
+  "description": "Official CLI for Brikko — chat with any LLM, mask PII (152-FZ), and manage the local Brikko Studio agent.",
   "keywords": [
     "brikko",
     "brikko-studio",
     "llm",
     "ai-agent",
+    "chat",
+    "openai",
+    "anthropic",
     "anonymization",
     "pii",
     "privacy",

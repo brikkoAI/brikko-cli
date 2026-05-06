@@ -25,6 +25,10 @@ import { update } from "./commands/update.js";
 import { uninstall } from "./commands/uninstall.js";
 import { doctor } from "./commands/doctor.js";
 import { version as versionCmd } from "./commands/version.js";
+import { chat } from "./commands/chat.js";
+import { anonymize } from "./commands/anonymize.js";
+import { restore } from "./commands/restore.js";
+import { safeChat } from "./commands/safeChat.js";
 import { log } from "./lib/logger.js";
 
 async function readPkgVersion(): Promise<string> {
@@ -256,6 +260,117 @@ async function main(): Promise<void> {
         versionCmd({
           dir: opts["dir"] as string | undefined,
           json: Boolean(opts["json"]),
+        }),
+      )(),
+    );
+
+  /* ------------------------------ chat ------------------------------ */
+  program
+    .command("chat [prompt]")
+    .description(
+      "Send a chat completion to api.brikko.ru. Use '-' or pipe stdin to read the prompt.",
+    )
+    .option("--prompt <text>", "User prompt (alternative to positional arg, pairs with --system)")
+    .option("--system <text>", "System message")
+    .option(
+      "-m, --model <id>",
+      "Model id (e.g. auto:cheap, auto:smart, gpt-5.4-mini). Default: auto:cheap",
+    )
+    .option("--json", "Output the full JSON response instead of just the text")
+    .option("--stream", "Stream tokens as they arrive (SSE)")
+    .option("--key <apiKey>", "Override API key (skip env / config file)")
+    .option(
+      "--temperature <n>",
+      "Sampling temperature (0..2)",
+      (v: string) => Number.parseFloat(v),
+    )
+    .option(
+      "--max-tokens <n>",
+      "Maximum tokens in the completion",
+      parsePositiveInt("--max-tokens"),
+    )
+    .action((promptArg: string | undefined, opts: Record<string, unknown>) =>
+      safe(() =>
+        chat({
+          prompt: promptArg,
+          promptFlag: opts["prompt"] as string | undefined,
+          system: opts["system"] as string | undefined,
+          model: opts["model"] as string | undefined,
+          json: Boolean(opts["json"]),
+          stream: Boolean(opts["stream"]),
+          key: opts["key"] as string | undefined,
+          temperature: opts["temperature"] as number | undefined,
+          maxTokens: opts["maxTokens"] as number | undefined,
+        }),
+      )(),
+    );
+
+  /* ----------------------------- anonymize -------------------------- */
+  program
+    .command("anonymize")
+    .description(
+      "Mask PII in text via /v1/anonymize. Reads from --text or stdin. JSON to stdout (--pretty for human view).",
+    )
+    .option("--text <text>", "Text to mask (otherwise stdin)")
+    .option("--pretty", "Human-readable output instead of JSON")
+    .option("--key <apiKey>", "Override API key")
+    .action((opts: Record<string, unknown>) =>
+      safe(() =>
+        anonymize({
+          text: opts["text"] as string | undefined,
+          pretty: Boolean(opts["pretty"]),
+          key: opts["key"] as string | undefined,
+        }),
+      )(),
+    );
+
+  /* ----------------------------- restore ---------------------------- */
+  program
+    .command("restore")
+    .description(
+      "Restore PII placeholders to real values via /v1/restore. Plain text to stdout.",
+    )
+    .requiredOption(
+      "--mapping-id <id>",
+      "Mapping ID returned by /v1/anonymize",
+    )
+    .option("--text <text>", "Text to restore (otherwise stdin)")
+    .option("--key <apiKey>", "Override API key")
+    .action((opts: Record<string, unknown>) =>
+      safe(() =>
+        restore({
+          mappingId: opts["mappingId"] as string | undefined,
+          text: opts["text"] as string | undefined,
+          key: opts["key"] as string | undefined,
+        }),
+      )(),
+    );
+
+  /* ---------------------------- safe-chat --------------------------- */
+  program
+    .command("safe-chat [prompt]")
+    .description(
+      "Privacy-safe chat: anonymize PII, send to chat, then restore the answer (152-FZ).",
+    )
+    .option("--prompt <text>", "User prompt (alternative to positional arg)")
+    .option("--system <text>", "System message")
+    .option(
+      "-m, --model <id>",
+      "Model id (default: auto:cheap)",
+    )
+    .option("--json", "Output the full pipeline trace as JSON")
+    .option("--key <apiKey>", "Override API key")
+    .option("--verbose", "Log how many PII spans were found (stderr)")
+    .action((promptArg: string | undefined, opts: Record<string, unknown>) =>
+      safe(() =>
+        safeChat({
+          prompt: promptArg,
+          promptFlag: opts["prompt"] as string | undefined,
+          system: opts["system"] as string | undefined,
+          model: opts["model"] as string | undefined,
+          json: Boolean(opts["json"]),
+          key: opts["key"] as string | undefined,
+          verbose: Boolean(opts["verbose"]),
         }),
       )(),
     );
