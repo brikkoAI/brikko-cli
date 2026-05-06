@@ -29,6 +29,13 @@ import { chat } from "./commands/chat.js";
 import { anonymize } from "./commands/anonymize.js";
 import { restore } from "./commands/restore.js";
 import { safeChat } from "./commands/safeChat.js";
+import {
+  proxyStart,
+  proxyStop,
+  proxyStatus,
+  proxyLogs,
+  DEFAULT_PROXY_PORT,
+} from "./commands/proxy.js";
 import { log } from "./lib/logger.js";
 
 async function readPkgVersion(): Promise<string> {
@@ -371,6 +378,69 @@ async function main(): Promise<void> {
           json: Boolean(opts["json"]),
           key: opts["key"] as string | undefined,
           verbose: Boolean(opts["verbose"]),
+        }),
+      )(),
+    );
+
+  /* ------------------------------ proxy ----------------------------- */
+  const proxy = program
+    .command("proxy")
+    .description("Local OpenAI-compatible proxy to api.brikko.ru with PII protection.");
+
+  proxy
+    .command("start")
+    .description(
+      `Start a local proxy daemon (default port ${DEFAULT_PROXY_PORT}). Point any OpenAI SDK at http://127.0.0.1:${DEFAULT_PROXY_PORT}/v1.`,
+    )
+    .option(
+      "--port <number>",
+      `Listen port (default: ${DEFAULT_PROXY_PORT})`,
+      parsePositiveInt("--port"),
+    )
+    .option("--no-pii-protect", "Disable transparent anonymize→forward→restore for /v1/chat and /v1/embeddings")
+    .option("--foreground", "Run in this process instead of forking a daemon (debugging)")
+    .option("--force", "Stop any existing daemon before starting")
+    .option("--key <apiKey>", "Override API key (otherwise from BRIKKO_API_KEY / config / prompt)")
+    .action((opts: Record<string, unknown>) =>
+      safe(() =>
+        proxyStart({
+          port: opts["port"] as number | undefined,
+          // commander flips --no-pii-protect into opts.piiProtect=false
+          noPiiProtect: opts["piiProtect"] === false,
+          foreground: Boolean(opts["foreground"]),
+          force: Boolean(opts["force"]),
+          key: opts["key"] as string | undefined,
+        }),
+      )(),
+    );
+
+  proxy
+    .command("stop")
+    .description("Stop the running proxy daemon.")
+    .action(() => safe(() => proxyStop({}))());
+
+  proxy
+    .command("status")
+    .description("Show proxy daemon state + counters.")
+    .option("--json", "Output JSON for scripting")
+    .action((opts: Record<string, unknown>) =>
+      safe(() => proxyStatus({ json: Boolean(opts["json"]) }))(),
+    );
+
+  proxy
+    .command("logs")
+    .description("Tail the proxy NDJSON log (~/.brikko/proxy.log).")
+    .option("-f, --follow", "Follow log output")
+    .addOption(
+      new Option("--tail <n>", "Lines from the end")
+        .default(100)
+        .argParser(parsePositiveInt("--tail")),
+    )
+    .action((opts: Record<string, unknown>) =>
+      safe(() =>
+        proxyLogs({
+          follow: Boolean(opts["follow"]),
+          tail: opts["tail"] as number | undefined,
         }),
       )(),
     );

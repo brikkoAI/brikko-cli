@@ -45,6 +45,15 @@ CLI диагностирует все эти зависимости через `
 | `brikko restore --mapping-id ID` | Восстановление PII placeholders → реальный текст |
 | `brikko safe-chat [prompt]` | **anonymize → chat → restore** одной командой. Compliance-friendly (152-ФЗ) |
 
+**Прокси-команды (v0.3.0+):** локальный OpenAI-совместимый прокси с автоматическим PII-маскингом.
+
+| Команда | Что делает |
+|---|---|
+| `brikko proxy start [--port N] [--no-pii-protect]` | Запустить демон на `http://127.0.0.1:11434`. Любой OpenAI SDK можно нацелить сюда — Brikko прозрачно проксирует, считает токены, маскирует ПД |
+| `brikko proxy stop` | Остановить демон (SIGTERM, через 5 сек SIGKILL) |
+| `brikko proxy status [--json]` | Состояние + uptime + счётчики (запросы, маски, ошибки) |
+| `brikko proxy logs [-f] [--tail N]` | Хвост `~/.brikko/proxy.log` (NDJSON) |
+
 **Studio-команды:** для управления локальным агентом.
 
 | Команда | Что делает |
@@ -111,6 +120,69 @@ echo "<NAME_1> подтвердил ИНН <INN_1>" \
 echo "Письмо клиенту Иванову с ИНН 7707083893" | brikko safe-chat
 # Модель видит "<NAME_1>" и "<INN_1>", ответ возвращается с реальными ПД.
 ```
+
+### 🔁 Локальный прокси для OpenAI SDK
+
+`brikko proxy` поднимает локальный демон, прикидывающийся `api.openai.com`.
+Существующий код, написанный под OpenAI SDK, начинает работать через Brikko
+без единой строчки правок — просто меняем `OPENAI_BASE_URL`.
+
+```bash
+# Запустить демон (автоматический PII-masking для /v1/chat и /v1/embeddings)
+brikko proxy start
+# → Прокси работает на http://127.0.0.1:11434 (PID 12345)
+
+# Использование с OpenAI SDK (Python)
+export OPENAI_BASE_URL=http://127.0.0.1:11434/v1
+export OPENAI_API_KEY=anything   # реальный ключ Brikko уже в демоне
+python my_existing_openai_app.py
+
+# Аналогично с Node.js / curl / любым другим клиентом
+curl http://127.0.0.1:11434/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"auto:cheap","messages":[{"role":"user","content":"hi"}]}'
+
+# Состояние + статистика
+brikko proxy status
+# → uptime: 5m, requests: 17, masks: 12, errors: 0
+
+# Лог запросов (NDJSON, по одному JSON-объекту на строку)
+brikko proxy logs --tail 50
+
+# Хвост логов в реальном времени
+brikko proxy logs -f
+
+# Остановить
+brikko proxy stop
+```
+
+**Что прокси делает автоматически (если PII-protection включена):**
+
+1. На `/v1/chat/completions` и `/v1/embeddings` — текст из `messages[].content` /
+   `input` уходит сначала в `/v1/anonymize`, ПД заменяются плейсхолдерами,
+   только потом запрос идёт в LLM.
+2. Ответ от LLM проходит через `/v1/restore` — клиент получает уже реальные
+   ИНН / ФИО / телефоны вместо `<INN_1>` / `<NAME_1>`.
+3. Для streaming (SSE) ответ проходит к клиенту с плейсхолдерами (низкий TTFT),
+   а в конце потока эмитится дополнительное событие `event: brikko.restored`
+   с уже восстановленным текстом — Brikko-aware клиенты могут подменить DOM.
+
+**Известные ограничения V0.3:**
+
+- Один демон на пользователя. Multi-port появится в V0.4.
+- `/v1/audio/transcriptions` (Whisper) — тоже проксируется, но без PII-маскинга
+  на лету (multipart/audio binary). Транскрипты можно прогнать через
+  `brikko anonymize` отдельно.
+- WebSockets / `Connection: Upgrade` не поддерживаются (отвечает `501`).
+- Демон биндится только на `127.0.0.1` — нельзя случайно открыть его наружу
+  и засветить ключ в локальной сети.
+
+**Опции:**
+
+- `--port N` — слушать другой порт (default `11434`)
+- `--no-pii-protect` — отключить anonymize/restore (raw pass-through)
+- `--foreground` — не форкать, держать процесс в текущей оболочке (отладка)
+- `--force` — убить существующий демон перед запуском
 
 ### 🔍 Что делает `brikko init`
 

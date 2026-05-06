@@ -270,7 +270,7 @@ export class BrikkoApiClient {
 function userAgent(): string {
   // We can't import package.json at runtime here without a build-time step;
   // a static identifier is fine — it's purely informational on the server.
-  return "brikko-cli/0.2.0 (+https://github.com/brikkoAI/brikko-cli)";
+  return "brikko-cli/0.3.0 (+https://github.com/brikkoAI/brikko-cli)";
 }
 
 function defaultSleep(ms: number): Promise<void> {
