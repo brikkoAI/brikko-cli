@@ -1,9 +1,13 @@
 # brikko-cli
 
-[![npm](https://img.shields.io/npm/v/brikko-cli.svg)](https://www.npmjs.com/package/brikko-cli)
+[![npm version](https://img.shields.io/npm/v/brikko-cli.svg)](https://www.npmjs.com/package/brikko-cli)
+[![npm downloads](https://img.shields.io/npm/dm/brikko-cli.svg)](https://www.npmjs.com/package/brikko-cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D18-green.svg)](#requirements)
+[![GitHub stars](https://img.shields.io/github/stars/brikkoAI/brikko-cli?style=social)](https://github.com/brikkoAI/brikko-cli/stargazers)
 [![CI](https://github.com/brikkoAI/brikko-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/brikkoAI/brikko-cli/actions)
+
+> **Часть [Brikko Privacy Ecosystem](https://brikko.ru)** — open-source инфраструктура маскинга персональных данных перед AI для русского рынка.
 
 Official CLI for [Brikko Studio](https://github.com/brikkoAI/brikko-studio) — the Russian-first desktop AI agent with reversible PII anonymization (152-FZ compliant).
 
@@ -378,3 +382,16 @@ MIT — see [LICENSE](./LICENSE).
 - Website: [brikko.ru](https://brikko.ru)
 - Telegram: [@brikko_news](https://t.me/brikko_news)
 - Email: hello@brikko.ru
+
+---
+
+## 🔗 Связанные продукты Brikko
+
+| Артефакт | Установка | Аудитория |
+|---|---|---|
+| [brikko-studio](https://github.com/brikkoAI/brikko-studio) | `curl install.brikko.ru/studio.sh \| bash` | Desktop AI agent с MCP |
+| [brikko-shield](https://github.com/brikkoAI/brikko-shield) | Chrome Web Store (скоро) | Маскинг в ChatGPT/Claude.ai |
+| **brikko-cli** ★ (вы здесь) | `npm install -g brikko-cli` | CLI для Studio |
+| [brikko-pii-skill](https://github.com/brikkoAI/brikko-pii-skill) | `git clone` | Skill для Claude Code/Cursor |
+| [n8n-nodes-brikko](https://github.com/brikkoAI/n8n-nodes-brikko) | `npm install n8n-nodes-brikko` | Маскинг в n8n workflows |
+| [presidio-ru-recognizers](https://github.com/brikkoAI/presidio-ru-recognizers) | `pip install presidio-ru-recognizers` | Python recognizers для Presidio |
